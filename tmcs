@@ -1,0 +1,44 @@
+#!/bin/bash
+
+key=$1
+user=$2
+fileName=$3
+
+. $fileName
+
+if [ ${#hosts[@]} -le 0 ]; then
+    echo 'No hosts !!'
+    exit 0
+fi
+
+if [ -n "$SESSION_NAME" ];then
+    session=$SESSION_NAME
+else
+    session=multi-ssh-`date +%s`
+fi
+
+window=multi-ssh
+
+### tmuxのセッションを作成
+tmux new-session -d -n $window -s $session
+
+cnt=0
+for host in ${hosts[@]};do
+    if [ ${cnt} -eq 0 ]; then
+        tmux send-keys -t $session "ssh -i ${key} ${user}@${host}" C-m
+        shift
+        cnt=1
+    else
+        tmux split-window "ssh -i ${key} ${user}@${host}"
+        tmux select-layout tiled > /dev/null
+    fi
+done
+
+### 最初のpaneを選択状態にする
+tmux select-pane -t 0
+
+### paneの同期モードを設定
+tmux set-window-option synchronize-panes on > /dev/null
+
+### セッションにアタッチ
+tmux attach-session -t $session
